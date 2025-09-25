@@ -17,7 +17,6 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { BarCodeScanner } from 'expo-barcode-scanner';
 
 import { useAppStore } from '../store';
 import { Rating } from '../types';
@@ -128,10 +127,19 @@ export default function RateStallScreen() {
 
   // QR Scanner function
   const openQrScanner = async () => {
-    const { status } = await BarCodeScanner.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
-      return;
+    if (!permission) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
+        return;
+      }
+    }
+    if (permission && !permission.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
+        return;
+      }
     }
     setQrModalVisible(true);
   };
@@ -357,9 +365,10 @@ export default function RateStallScreen() {
         onRequestClose={() => setQrModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <BarCodeScanner
-            onBarCodeScanned={qrModalVisible ? handleBarCodeScanned : undefined}
+          <CameraView
             style={styles.camera}
+            facing={facing}
+            onBarcodeScanned={qrModalVisible ? handleBarCodeScanned : undefined}
           >
             <View style={styles.qrOverlay}>
               <View style={styles.qrFrame} />
@@ -373,7 +382,7 @@ export default function RateStallScreen() {
               </TouchableOpacity>
               <Text style={styles.qrText}>Scan QR code or Danish phone number</Text>
             </View>
-          </BarCodeScanner>
+          </CameraView>
         </View>
       </Modal>
     </AppLayout>
