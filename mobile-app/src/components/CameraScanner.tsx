@@ -226,7 +226,7 @@ const CameraScanner: React.FC<CameraScannerProps> = ({
         {/* OCR Instructions */}
         <View style={styles.ocrInstructions}>
           <Text style={styles.ocrInstructionsText}>
-            Peg kameraet mod bod information eller telefonnummer
+            Peg kameraet horisontalt mod boden. 
           </Text>
         </View>
       </View>
