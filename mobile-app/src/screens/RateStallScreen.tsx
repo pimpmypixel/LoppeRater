@@ -41,7 +41,6 @@ export default function RateStallScreen() {
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [qrPermission, requestQrPermission] = BarCodeScanner.usePermissions();
   const cameraRef = useRef<any>(null);
 
   // Form state
@@ -129,19 +128,10 @@ export default function RateStallScreen() {
 
   // QR Scanner function
   const openQrScanner = async () => {
-    if (!qrPermission) {
-      const { granted } = await requestQrPermission();
-      if (!granted) {
-        Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
-        return;
-      }
-    }
-    if (qrPermission && !qrPermission.granted) {
-      const { granted } = await requestQrPermission();
-      if (!granted) {
-        Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
-        return;
-      }
+    const { status } = await BarCodeScanner.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
+      return;
     }
     setQrModalVisible(true);
   };
