@@ -145,7 +145,10 @@ export default function RateStallScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
-            <Text style={styles.title}>Bedøm bod</Text>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Bedøm bod</Text>
+              <Text style={styles.subtitle}>Bedøm boden!</Text>
+            </View>
           </View>
 
           {/* Phone Number Input */}
@@ -168,7 +171,7 @@ export default function RateStallScreen() {
 
           {/* Camera Section for OCR */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Scan bod information (OCR)</Text>
+            <Text style={styles.label}>Vis hvad der er godt eller mindre godt.</Text>
             {photoUri ? (
               <View style={styles.photoContainer}>
                 <Image source={{ uri: photoUri }} style={styles.photo} />
@@ -186,8 +189,7 @@ export default function RateStallScreen() {
                 style={styles.cameraButton}
               >
                 <Ionicons name="camera" size={24} color="#2196F3" />
-                <Text style={styles.cameraButtonText}>Skyd et billede af boden!</Text>
-                <Text style={[styles.cameraButtonText, { fontSize: 12 }]}>Vis hvad der er godt eller mindre godt.</Text>
+                <Text style={styles.cameraButtonText}>Skyd et billede af boden!</Text><br />
               </TouchableOpacity>
             )}
           </View>
@@ -248,11 +250,22 @@ const styles = StyleSheet.create({
     marginRight: 16,
     padding: 8,
   },
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
   },
   inputGroup: {
     marginBottom: 20,
