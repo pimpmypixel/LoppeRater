@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAppStore } from '../store';
 import apiService from '../services/api';
+import AppLogoIcon from '../components/app-logo-icon';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -77,9 +78,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Logo/Illustration placeholder */}
-        <View style={styles.logoContainer}>
-          <Ionicons name="storefront" size={80} color="#2196F3" />
-        </View>
+        <AppLogoIcon />
         
         <Text style={styles.title}>{t('welcome.title')}</Text>
         <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>

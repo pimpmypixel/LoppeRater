@@ -19,6 +19,7 @@ import { useAppStore } from '../store';
 import { Market } from '../types';
 import { formatDistance, calculateDistance, debounce } from '../utils';
 import apiService from '../services/api';
+import AppLogoIcon from '../components/app-logo-icon';
 
 export default function MarketsScreen() {
   const { t } = useTranslation();
@@ -210,6 +211,7 @@ export default function MarketsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <AppLogoIcon />
         <Text style={styles.title}>{t('markets.title')}</Text>
         
         <View style={styles.searchContainer}>

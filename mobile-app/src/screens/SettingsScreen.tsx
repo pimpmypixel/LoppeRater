@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store';
+import AppLogoIcon from '../components/app-logo-icon';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -38,6 +39,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <AppLogoIcon />
         <Text style={styles.title}>{t('common.settings')}</Text>
       </View>
 
@@ -56,20 +58,20 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <TouchableOpacity style={styles.settingItem}>
-            <Ionicons name="notifications-outline" size={24} color="#666" />
-            <Text style={styles.settingText}>Notifikationer</Text>
+            <Ionicons name="help-circle-outline" size={24} color="#666" />
+            <Text style={styles.settingText}>Hvordan virker det?</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          {/* <TouchableOpacity style={styles.settingItem}>
             <Ionicons name="language-outline" size={24} color="#666" />
             <Text style={styles.settingText}>Sprog</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity style={styles.settingItem}>
             <Ionicons name="shield-outline" size={24} color="#666" />
-            <Text style={styles.settingText}>Privatliv</Text>
+            <Text style={styles.settingText}>Privatliv - hvad bliver delt?</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 

@@ -9,17 +9,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAppStore } from '../store';
 import { Rating } from '../types';
-import CameraScanner from '../components/CameraScanner';
 import MultiRatingSliders from '../components/StarRating';
+import AppLayout from '../components/AppLayout';
 
 interface RouteParams {
   stallId: string;
@@ -37,15 +35,11 @@ export default function RateStallScreen() {
   const [stallName, setStallName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneError, setPhoneError] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [ratings, setRatings] = useState({
     selection: 5,
     friendliness: 5,
     creativity: 5,
   });
-
-  // Camera state - only for native platforms
-  const [showCamera, setShowCamera] = useState(false);
 
   const validatePhoneNumber = (phone: string) => {
     if (!phone.trim()) {
@@ -58,17 +52,6 @@ export default function RateStallScreen() {
     }
     setPhoneError('');
     return true;
-  };
-
-  const handlePhotoTaken = (uri: string) => {
-    setPhotoUri(uri);
-    setShowCamera(false);
-  };
-
-  const handlePhoneDetected = (phones: string[]) => {
-    if (phones.length > 0 && !phoneNumber.trim()) {
-      setPhoneNumber(phones[0]);
-    }
   };
 
   const handleSubmit = async () => {
@@ -117,18 +100,12 @@ export default function RateStallScreen() {
     }
   };
 
-  if (showCamera) {
-    return (
-      <CameraScanner
-        onPhotoTaken={handlePhotoTaken}
-        onPhoneDetected={handlePhoneDetected}
-        onClose={() => setShowCamera(false)}
-      />
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
+    <AppLayout
+      showHeader={true}
+      showFooter={true}
+      onBackPress={() => navigation.goBack()}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -138,22 +115,15 @@ export default function RateStallScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color="#333" />
-            </TouchableOpacity>
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>Bedøm bod</Text>
-              <Text style={styles.subtitle}>Bedøm boden!</Text>
-            </View>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Bedøm boden!</Text>
+            <Text style={styles.subtitle}>Er der noget, der er værd at eje?</Text>
           </View>
 
           {/* Phone Number Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Telefonnummer</Text>
+            <Text style={styles.label}>Bodens betalingsnummer</Text>
+            <Text style={styles.micro}>Anonymiseres i henhold til GDPR</Text>
             <TextInput
               style={[styles.textInput, phoneError ? styles.inputError : null]}
               value={phoneNumber}
@@ -161,7 +131,7 @@ export default function RateStallScreen() {
                 setPhoneNumber(text);
                 if (phoneError) validatePhoneNumber(text);
               }}
-              placeholder="f.eks. 12345678 eller +45 12345678"
+              placeholder="12345678"
               placeholderTextColor="#999"
               keyboardType="phone-pad"
               onBlur={() => validatePhoneNumber(phoneNumber)}
@@ -169,34 +139,40 @@ export default function RateStallScreen() {
             {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
           </View>
 
-          {/* Camera Section for OCR */}
+          {/* Photo Section with Fake Buttons */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Vis hvad der er godt eller mindre godt.</Text>
-            {photoUri ? (
-              <View style={styles.photoContainer}>
-                <Image source={{ uri: photoUri }} style={styles.photo} />
-                <TouchableOpacity
-                  onPress={() => setShowCamera(true)}
-                  style={styles.retakeButton}
-                >
-                  <Ionicons name="camera-reverse" size={20} color="white" />
-                  <Text style={styles.retakeText}>Scan igen</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
+            <View style={styles.photoButtonsContainer}>
               <TouchableOpacity
-                onPress={() => setShowCamera(true)}
-                style={styles.cameraButton}
+                style={styles.photoButton}
+                onPress={() => Alert.alert('Info', 'Dette ville åbne kameraet for at tage et billede')}
               >
                 <Ionicons name="camera" size={24} color="#2196F3" />
-                <Text style={styles.cameraButtonText}>Skyd et billede af boden!</Text><br />
+                <Text style={styles.photoButtonText}>Tag billede</Text>
               </TouchableOpacity>
-            )}
+
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={() => Alert.alert('Info', 'Dette ville åbne galleriet for at vælge et billede')}
+              >
+                <Ionicons name="images" size={24} color="#2196F3" />
+                <Text style={styles.photoButtonText}>Vælg fra galleri</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={() => Alert.alert('Info', 'Dette ville scanne QR-koden for MobilePay')}
+              >
+                <Ionicons name="qr-code" size={24} color="#2196F3" />
+                <Text style={styles.photoButtonText}>Scan QR-kode</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Stall Name Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Bod navn</Text>
+            <Text style={styles.micro}>Evt. indehaver eller alias</Text>
             <TextInput
               style={styles.textInput}
               value={stallName}
@@ -222,7 +198,7 @@ export default function RateStallScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </AppLayout>
   );
 }
 
@@ -253,6 +229,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     flex: 1,
     alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
@@ -267,6 +244,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
+  micro: {
+    fontSize: 8,
+    fontWeight: '500',
+    color: '#666',
+    textAlign: 'left',
+    marginTop: 0,
+  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -274,7 +258,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 0,
+    marginTop: 10,
   },
   textInput: {
     backgroundColor: 'white',
@@ -351,5 +336,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  photoButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  photoButtonText: {
+    fontSize: 14,
+    color: '#2196F3',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

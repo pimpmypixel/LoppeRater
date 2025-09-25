@@ -22,15 +22,8 @@
     "confirmNumber": "Bekræft nummer",
     "continueToRating": "Fortsæt til bedømmelse"
   },
-  "rating": {
-    "title": "Bedøm bod",
-    "selection": "Udvalg",
-    "friendliness": "Venlighed",
-    "creativity": "Kreativitet",
-    "comment": "Kommentar (valgfri)",
-    "commentPlaceholder": "Skriv en opmuntrende kommentar...",
-    "submitFeedback": "Send hyggelig feedback",
-    "thankYou": "Tak! Din feedback hjælper loppemarkeder med at blomstre 🌱"
+  "rate": {
+    "title": "Rate boden"
   },
   "common": {
     "save": "Gem",

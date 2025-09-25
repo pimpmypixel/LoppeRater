@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store';
 import { Market } from '../types';
 import { formatDistance, calculateDistance } from '../utils';
+import AppLogoIcon from '../components/app-logo-icon';
 
 interface RouteParams {
   marketId: string;
@@ -111,6 +112,7 @@ export default function MarketDetailScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
+          <AppLogoIcon />
           <Text style={styles.title}>{market.name}</Text>
           {distance && (
             <View style={styles.distanceContainer}>

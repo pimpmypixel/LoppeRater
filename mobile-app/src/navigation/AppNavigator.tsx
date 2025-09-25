@@ -57,7 +57,7 @@ const MainTabs = () => {
         name="Rate" 
         component={RateStallScreen}
         options={{
-          tabBarLabel: t('rate.title'),
+          tabBarLabel: 'Rate boden',
         }}
       />
       <Tab.Screen 
