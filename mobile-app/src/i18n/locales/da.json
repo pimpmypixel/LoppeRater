@@ -1,0 +1,68 @@
+{
+  "welcome": {
+    "title": "Velkommen til LoppeRate",
+    "subtitle": "Hjælp loppemarkeder med at blomstre",
+    "cta": "Klar til at hjælpe loppemarkeder forbedre sig? Lad os komme i gang!",
+    "getStarted": "Kom i gang"
+  },
+  "markets": {
+    "title": "Loppemarkeder",
+    "nearby": "Nærliggende markeder",
+    "upcoming": "Kommende markeder",
+    "useLocation": "Brug min placering",
+    "noMarkets": "Ingen markeder fundet",
+    "searchPlaceholder": "Søg markeder...",
+    "createMarket": "Opret nyt marked"
+  },
+  "stall": {
+    "create": "Opret bod",
+    "photo": "Tag billede af bod",
+    "mobilepay": "Scan MobilePay nummer",
+    "enterManually": "Indtast manuelt",
+    "confirmNumber": "Bekræft nummer",
+    "continueToRating": "Fortsæt til bedømmelse"
+  },
+  "rating": {
+    "title": "Bedøm bod",
+    "selection": "Udvalg",
+    "friendliness": "Venlighed",
+    "creativity": "Kreativitet",
+    "comment": "Kommentar (valgfri)",
+    "commentPlaceholder": "Skriv en opmuntrende kommentar...",
+    "submitFeedback": "Send hyggelig feedback",
+    "thankYou": "Tak! Din feedback hjælper loppemarkeder med at blomstre 🌱"
+  },
+  "common": {
+    "save": "Gem",
+    "cancel": "Annuller",
+    "continue": "Fortsæt",
+    "back": "Tilbage",
+    "loading": "Indlæser...",
+    "error": "Fejl",
+    "success": "Succes",
+    "retry": "Prøv igen",
+    "close": "Luk",
+    "settings": "Indstillinger"
+  },
+  "camera": {
+    "takePhoto": "Tag billede",
+    "retake": "Tag igen",
+    "usePhoto": "Brug billede",
+    "cameraPermission": "Kamera tilladelse påkrævet",
+    "grantPermission": "Giv tilladelse"
+  },
+  "location": {
+    "permissionRequired": "Placering påkrævet",
+    "grantPermission": "Giv placeringstilladelse",
+    "findingLocation": "Finder din placering...",
+    "locationError": "Kunne ikke finde din placering"
+  },
+  "auth": {
+    "signIn": "Log ind",
+    "signInWith": "Log ind med",
+    "google": "Google",
+    "facebook": "Facebook",
+    "signOut": "Log ud",
+    "profile": "Profil"
+  }
+}

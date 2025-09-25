@@ -1,0 +1,259 @@
+# Product Requirements Document (PRD) – LoppeRate
+
+## Overview
+**LoppeRate** is a React Native Expo mobile app designed to improve the quality and experience of danish flea markets. It allows visitors to rate and provide constructive, positive feedback on individual stalls. The app’s mission is to create a “cozy critique” culture where sellers are encouraged to present well-maintained, unique, and sustainable goods instead of low-value bulk items.  
+
+By fostering positive feedback loops, LoppeRate makes flea markets more attractive to both buyers and sellers, strengthens community engagement, and promotes sustainability.  
+
+---
+
+## Target Audience
+- **Primary:** Flea market visitors (buyers, families, enthusiasts). This is the main user type.  
+- **Secondary:** Sellers, who receive feedback via a web-based dashboard (no app install needed).  This is the secondary user type.
+- **Tertiary:** Organizers, who can use aggregated data to improve future markets.  
+
+---
+
+## Core Features
+1. **Rating & Feedback**
+   - Star-based system (0–10) for: Selection, Friendliness, Creativity.  
+   - Optional comment field with AI suggestions to ensure positive tone.  
+   - Predefined encouraging phrases for quick submission.  
+
+2. **OCR Scanning**
+   - Camera-based scanning of MobilePay numbers or QR codes using expo-camera
+   - OCR integration with expo-image-manipulator + react-native-vision-camera for high-quality text recognition
+   - Primary: react-native-text-recognition (ML Kit wrapper for Expo)
+   - Fallback: expo-barcode-scanner for QR codes
+   - Regex validation for Danish phone numbers (8 digits, starting with 2–9)
+   - Manual fallback entry if OCR fails
+   - Image preprocessing for better OCR accuracy (contrast, rotation, cropping)  
+
+3. **Feedback Delivery to Seller**
+   - Automatic SMS (via Twilio API) or MobilePay API (if available).  
+   - Message includes short positive note + link to seller’s dashboard.  
+   - Example: *“You received cozy feedback from a visitor! Click here to see how your stall is doing: [link]”*.  
+
+4. **Seller Web Portal**
+   - Accessed via link (no login app required).  
+   - Displays ratings, comments, and basic analytics.  
+   - Positive reinforcement with badges (“Quality Seller”, “Top Friendliness”).  
+   - Options for replying anonymously, reporting inappropriate comments, or sharing feedback on social media.  
+
+5. **Additional Features (post-MVP)**
+   - **Market Map:** Integration with markedskalenderen.dk and GPS for nearby markets.  
+   - **Gamification:** Points for users who rate → redeemable with partners.  
+   - **AI Assistant:** Suggests uplifting comments and analyzes stall photos.  
+   - **Security:**  
+     - One rating per stall per day.  
+     - MobilePay number verification to reduce spam.  
+     - GDPR-compliance (anonymous data, deletion option).  
+
+---
+
+## User Flow
+1. **Start Screen**  
+   - Welcome illustration.  
+   - CTA: “Ready to help flea markets improve? Let’s go!”  
+
+2. **View Flea Markets (via markedskalenderen.dk)**  
+   - List of upcoming markets fetched from API.  
+   - Option to search or browse.  
+   - CTA: “Use my location.”  
+
+3. **Allow Geolocation**  
+   - App requests GPS permission.  
+   - Displays nearby markets on map.  
+
+4. **Select or Create Market**  
+   - Choose from listed markets.  
+   - Or quickly create a new market by entering name + location.  
+
+5. **At the Stall: Create Stall Entry**  
+   - Tap “Create Stall.”  
+   - Stall geolocation saved automatically (editable).  
+   - Take a stall photo.  
+
+6. **MobilePay Verification**  
+   - OCR scans MobilePay number.  
+   - Manual entry fallback if OCR fails.  
+   - Confirm number → “Continue to rating.”  
+
+7. **Rate Stall**  
+   - Three rating categories (0–10 stars):  
+     - Selection  
+     - Friendliness  
+     - Creativity  
+   - Optional AI-assisted positive comment.  
+   - CTA: “Send cozy feedback.”  
+
+8. **Submit & Confirmation**  
+   - Feedback stored in backend.  
+   - Seller receives SMS with dashboard link.  
+   - Success message: “Thank you! Your feedback helps flea markets flourish 🌱.”  
+
+---
+
+## Technical Architecture
+
+> **Important:** This project uses Bun as the exclusive package manager and runtime. All dependencies must be installed with `bun install` and scripts run with `bun run`. This ensures consistent performance and compatibility across the development team.
+
+### Mobile App (React Native + Expo)
+- **Framework:** Expo SDK 54+ (React Native 0.74+)
+- **Development:** Expo CLI with development build for native modules
+- **Target Platforms:** iOS 13+ and Android API 21+ (Android 5.0)
+- **Authentication:** Expo AuthSession with Google OAuth2 and Facebook Login
+- **OCR:** expo-camera + expo-image-manipulator + react-native-vision-camera + react-native-text-recognition
+- **Location:** expo-location with GPS tracking
+- **Storage:** expo-secure-store for sensitive data, AsyncStorage for general data
+- **Navigation:** React Navigation 6+ with stack and tab navigators
+- **State Management:** Zustand or Redux Toolkit
+- **HTTP Client:** Axios with interceptors for API calls
+- **Styling:** NativeWind (Tailwind CSS for React Native) or Styled Components
+
+### Backend & APIs
+- **Backend:** Laravel 11 (not 12 - use latest stable)
+- **Database:** MySQL 8.0 or PostgreSQL 15
+- **API:** Laravel Sanctum for API authentication
+- **External APIs:**
+  - markedskalenderen.dk integration
+  - Twilio SMS API
+  - Google Maps API (for location services)
+  - MobilePay API (if available)
+- **Seller Web Portal:** Laravel Inertia with React/TypeScript
+
+### Development Environment
+- **macOS Ventura:** Xcode 14+ for iOS simulator
+- **Android Testing:** OnePlus 10 Pro via USB debugging
+- **Package Manager:** Bun (required for all package management and script execution)
+- **Code Quality:** ESLint, Prettier, TypeScript strict mode
+- **Testing:** Jest + React Native Testing Library
+
+### Hosting & Deployment
+- **Backend:** DigitalOcean App Platform or AWS ECS
+- **Database:** Managed database service (DigitalOcean Managed MySQL or AWS RDS)
+- **File Storage:** AWS S3 or DigitalOcean Spaces
+- **CDN:** CloudFlare
+- **App Distribution:** Expo Application Services (EAS Build)
+
+---
+
+## Local Development Setup
+
+### Prerequisites for macOS Ventura
+```bash
+# Install Bun (replaces Node.js package manager)
+curl -fsSL https://bun.sh/install | bash
+
+# Install Node.js 18+ via fnm (required for React Native)
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install 18
+fnm use 18
+
+# Install Expo CLI using Bun
+bun install -g @expo/cli
+
+# Install EAS CLI for builds using Bun
+bun install -g eas-cli
+
+# Install Xcode from Mac App Store (for iOS simulator)
+# Install Android Studio (for Android emulator - optional since using physical device)
+```
+
+### OnePlus 10 Pro Setup for Testing
+1. Enable Developer Options: Settings → About Phone → Tap Build Number 7 times
+2. Enable USB Debugging: Settings → Developer Options → USB Debugging
+3. Connect via USB and authorize computer
+4. Verify device: `adb devices` (should show device ID)
+
+### Project Structure
+```
+lopperater/
+├── mobile-app/          # Expo React Native app
+├── seller-portal/      # Laravel API and Inertia web app
+├── docs/              # Additional documentation
+└── .github/           # GitHub workflows and instructions
+```
+
+### Mobile App Development Commands
+```bash
+# Start development server
+cd mobile-app && bun start
+
+# Run on physical Android device (OnePlus 10 Pro)
+cd mobile-app && bun android
+
+# Run on iOS simulator (macOS)
+cd mobile-app && bun ios
+
+# Run on web (for quick UI testing)
+cd mobile-app && bun web
+
+# Build development version with native modules
+cd mobile-app && eas build --profile development --platform android
+```
+
+### Environment Variables (Development)
+```
+# .env.local in mobile-app/
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8000/api
+EXPO_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=your_google_client_id
+EXPO_PUBLIC_FACEBOOK_APP_ID=your_facebook_app_id
+EXPO_PUBLIC_TWILIO_ACCOUNT_SID=your_twilio_sid
+EXPO_PUBLIC_MAPS_API_KEY=your_google_maps_key
+```  
+
+---
+
+## Design & UI
+- **Visual style:** Modern approachable palette, rounded cards and icons. 
+- **Typography:** Modern style fonts, large type for readability.
+- **Tone of voice:** Encouraging, approachable, uplifting, and community-driven.  
+- **Microcopy examples:**  
+  - “Your stall has great potential – try focusing on fewer, more unique items.”  
+  - “Super friendly atmosphere, it made the experience cozy!”  
+
+---
+
+## MVP Scope
+- App locale is Danish (use react-i18next for internationalization)
+- Market list integration (markedskalenderen.dk API integration)
+- GPS & location-based market discovery with expo-location
+- User authentication with Google/Facebook via Expo AuthSession
+- Users can be one or more of: buyer, seller, organiser
+- Stall creation with photo(s) using expo-camera + MobilePay verification (OCR/manual)
+- Ratings (0–10 stars for 3 categories) with animated star components
+- Feedback submission with SMS delivery via Twilio API
+- Simple seller dashboard (ratings + comments) as responsive web app
+- Offline support for basic functionality (AsyncStorage + network state detection)
+- Push notifications for sellers when receiving feedback (Expo Notifications)
+
+### Key Dependencies for MVP
+```json
+{
+  "expo": "~51.0.0",
+  "react-native": "0.74.0",
+  "@expo/vector-icons": "^14.0.0",
+  "expo-camera": "~15.0.0",
+  "expo-location": "~17.0.0",
+  "expo-secure-store": "~13.0.0",
+  "expo-auth-session": "~5.5.0",
+  "expo-image-manipulator": "~12.0.0",
+  "react-navigation/native": "^6.1.0",
+  "react-navigation/stack": "^6.4.0",
+  "react-navigation/bottom-tabs": "^6.6.0",
+  "zustand": "^4.5.0",
+  "axios": "^1.7.0",
+  "react-native-text-recognition": "^0.2.0",
+  "react-i18next": "^14.0.0",
+  "expo-notifications": "~0.28.0"
+}
+```  
+
+---
+
+## Roadmap (Beyond MVP)
+- Market map view with ratings per stall.  
+- Gamification (points, user rewards).  
+- AI image analysis for stall assessment.  
+- Seller dashboard social sharing.  
