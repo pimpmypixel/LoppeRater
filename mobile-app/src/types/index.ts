@@ -3,11 +3,9 @@ export interface User {
   name: string;
   email: string;
   profileImage?: string;
-  authProvider: 'google' | 'facebook';
-  roles: UserRole[];
+  authProvider: 'google' | 'github';
+  role: string;
 }
-
-export type UserRole = 'buyer' | 'seller' | 'organizer';
 
 export interface Market {
   id: string;
@@ -16,9 +14,8 @@ export interface Market {
   location: Location;
   startDate: string;
   endDate: string;
-  organizer?: User;
-  stalls?: Stall[];
   isActive: boolean;
+  stalls?: Stall[];
 }
 
 export interface Location {
@@ -31,20 +28,13 @@ export interface Location {
 
 export interface Stall {
   id: string;
+  name: string;
+  description?: string;
+  phone?: string;
   marketId: string;
-  sellerId?: string;
-  location: Location;
-  mobilePayNumber: string;
+  vendorId: string;
   photos: string[];
   ratings: Rating[];
-  averageRatings: {
-    selection: number;
-    friendliness: number;
-    creativity: number;
-    overall: number;
-  };
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Rating {

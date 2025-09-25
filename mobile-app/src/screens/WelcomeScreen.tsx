@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAppStore } from '../store';
 import apiService from '../services/api';
+import { User } from '../types';
 import AppLogoIcon from '../components/app-logo-icon';
 
 export default function WelcomeScreen() {
@@ -33,12 +34,13 @@ export default function WelcomeScreen() {
       ); */
       
       // Simulate successful login for development
-      const mockUser = {
+            const mockUser: User = {
         id: '1',
-        name: 'Test Bruger',
+        name: 'Test User',
         email: 'test@example.com',
+        profileImage: undefined,
         authProvider: 'google' as const,
-        roles: ['buyer' as const],
+        role: 'buyer',
       };
       
       setUser(mockUser);

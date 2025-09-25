@@ -1,26 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Image, StyleSheet } from 'react-native';
 
 const AppLogoIcon: React.FC = () => {
   return (
     <View style={styles.logoContainer}>
-      <Ionicons name="storefront" size={32} color="#2196F3" />
-      <Text style={styles.logoText}>LoppeRater</Text>
+      <Image
+        source={require('../../assets/logo.png')}
+        style={styles.logoImage}
+        resizeMode="contain"
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   logoContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 32,
   },
-  logoText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2196F3',
+  logoImage: {
+    width: 120,
+    height: 120,
   },
 });
 

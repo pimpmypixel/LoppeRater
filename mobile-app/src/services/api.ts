@@ -1,68 +1,65 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { Client, Databases, Account, Storage, ID, Query } from 'appwrite';
 import { ApiResponse, Market, Stall, Rating, User } from '../types';
 
 class ApiService {
-  private client: AxiosInstance;
-  private baseURL: string;
+  private client: Client;
+  private databases: Databases;
+  private account: Account;
+  private storage: Storage;
+  private databaseId: string;
 
   constructor() {
-    this.baseURL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
-    
-    this.client = axios.create({
-      baseURL: this.baseURL,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    this.databaseId = 'lopperater'; // Same as in setup script
 
-    // Request interceptor to add auth token
-    this.client.interceptors.request.use(
-      async (config) => {
-        const token = await SecureStore.getItemAsync('authToken');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
+    this.client = new Client()
+      .setEndpoint(process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+      .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || '');
 
-    // Response interceptor for error handling
-    this.client.interceptors.response.use(
-      (response: AxiosResponse) => response,
-      async (error) => {
-        if (error.response?.status === 401) {
-          // Token expired, clear it
-          await SecureStore.deleteItemAsync('authToken');
-        }
-        return Promise.reject(error);
-      }
-    );
+    this.databases = new Databases(this.client);
+    this.account = new Account(this.client);
+    this.storage = new Storage(this.client);
   }
 
   // Auth methods
-  async login(provider: 'google' | 'facebook', token: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    const response = await this.client.post('/auth/login', { provider, token });
-    
-    if (response.data.token) {
-      await SecureStore.setItemAsync('authToken', response.data.token);
+  async login(provider: 'google' | 'github'): Promise<User> {
+    try {
+      await this.account.createOAuth2Session(
+        provider as any,
+        'lopperater://', // Redirect URL
+        'lopperater://' // Failure URL
+      );
+      const user = await this.account.get();
+      return {
+        id: user.$id,
+        email: user.email,
+        name: user.name,
+        profileImage: user.prefs?.avatar || null,
+        authProvider: provider,
+        role: user.prefs?.role || 'user'
+      };
+    } catch (error) {
+      throw error;
     }
-    
-    return response.data;
   }
 
   async logout(): Promise<void> {
-    await this.client.post('/auth/logout');
-    await SecureStore.deleteItemAsync('authToken');
+    await this.account.deleteSession('current');
   }
 
-  async getCurrentUser(): Promise<ApiResponse<User>> {
-    const response = await this.client.get('/auth/me');
-    return response.data;
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const user = await this.account.get();
+      return {
+        id: user.$id,
+        email: user.email,
+        name: user.name,
+        profileImage: user.prefs?.avatar || null,
+        authProvider: 'google', // default
+        role: user.prefs?.role || 'user'
+      };
+    } catch {
+      return null;
+    }
   }
 
   // Market methods
@@ -70,74 +67,182 @@ class ApiService {
     latitude?: number; 
     longitude?: number; 
     radius?: number; 
-  }): Promise<ApiResponse<Market[]>> {
-    const response = await this.client.get('/markets', { params });
-    return response.data;
+  }): Promise<Market[]> {
+    const queries: any[] = [];
+    if (params?.latitude && params?.longitude && params?.radius) {
+      // Note: Appwrite doesn't have geo queries built-in, might need custom logic
+    }
+    const response = await this.databases.listDocuments(
+      this.databaseId,
+      'markets',
+      queries
+    );
+    return response.documents.map(doc => ({
+      id: doc.$id,
+      name: doc.name,
+      location: {
+        latitude: doc.latitude || 0,
+        longitude: doc.longitude || 0,
+        address: doc.location,
+        city: '',
+        postalCode: ''
+      },
+      description: doc.description,
+      startDate: '', // Not in DB, default
+      endDate: '',
+      isActive: true,
+      stalls: doc.stalls || []
+    }));
   }
 
-  async getMarket(id: string): Promise<ApiResponse<Market>> {
-    const response = await this.client.get(`/markets/${id}`);
-    return response.data;
+  async getMarket(id: string): Promise<Market> {
+    const doc = await this.databases.getDocument(this.databaseId, 'markets', id);
+    return {
+      id: doc.$id,
+      name: doc.name,
+      location: {
+        latitude: doc.latitude || 0,
+        longitude: doc.longitude || 0,
+        address: doc.location,
+        city: '',
+        postalCode: ''
+      },
+      description: doc.description,
+      startDate: '',
+      endDate: '',
+      isActive: true,
+      stalls: doc.stalls || []
+    };
   }
 
-  async createMarket(market: Partial<Market>): Promise<ApiResponse<Market>> {
-    const response = await this.client.post('/markets', market);
-    return response.data;
+  async createMarket(market: Partial<Market>): Promise<Market> {
+    const doc = await this.databases.createDocument(
+      this.databaseId,
+      'markets',
+      ID.unique(),
+      {
+        name: market.name,
+        location: market.location?.address,
+        description: market.description,
+        latitude: market.location?.latitude,
+        longitude: market.location?.longitude
+      }
+    );
+    return {
+      id: doc.$id,
+      name: doc.name,
+      location: {
+        latitude: doc.latitude || 0,
+        longitude: doc.longitude || 0,
+        address: doc.location,
+        city: '',
+        postalCode: ''
+      },
+      description: doc.description,
+      startDate: '',
+      endDate: '',
+      isActive: true,
+      stalls: []
+    };
   }
 
   // Stall methods
-  async getStalls(marketId: string): Promise<ApiResponse<Stall[]>> {
-    const response = await this.client.get(`/markets/${marketId}/stalls`);
-    return response.data;
+  async getStalls(marketId: string): Promise<Stall[]> {
+    const response = await this.databases.listDocuments(
+      this.databaseId,
+      'stalls',
+      [Query.equal('marketId', marketId)]
+    );
+    return response.documents.map(doc => ({
+      id: doc.$id,
+      name: doc.name,
+      description: doc.description,
+      phone: doc.phone,
+      marketId: doc.marketId,
+      vendorId: doc.vendorId,
+      photos: doc.photos || [],
+      ratings: doc.ratings || []
+    }));
   }
 
-  async createStall(stall: Partial<Stall>): Promise<ApiResponse<Stall>> {
-    const response = await this.client.post('/stalls', stall);
-    return response.data;
-  }
-
-  async uploadStallPhoto(stallId: string, photoUri: string): Promise<ApiResponse<{ url: string }>> {
-    const formData = new FormData();
-    formData.append('photo', {
-      uri: photoUri,
-      type: 'image/jpeg',
-      name: 'stall-photo.jpg',
-    } as any);
-
-    const response = await this.client.post(`/stalls/${stallId}/photos`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+  async createStall(stall: Partial<Stall>): Promise<Stall> {
+    const doc = await this.databases.createDocument(
+      this.databaseId,
+      'stalls',
+      ID.unique(),
+      {
+        name: stall.name,
+        description: stall.description,
+        phone: stall.phone,
+        marketId: stall.marketId,
+        vendorId: stall.vendorId
+      }
+    );
+    return {
+      id: doc.$id,
+      name: doc.name,
+      description: doc.description,
+      phone: doc.phone,
+      marketId: doc.marketId,
+      vendorId: doc.vendorId,
+      photos: [],
+      ratings: []
+    };
   }
 
   // Rating methods
-  async createRating(rating: Partial<Rating>): Promise<ApiResponse<Rating>> {
-    const response = await this.client.post('/ratings', rating);
-    return response.data;
+  async createRating(rating: Partial<Rating>): Promise<Rating> {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const doc = await this.databases.createDocument(
+      this.databaseId,
+      'ratings',
+      ID.unique(),
+      {
+        selection: rating.selection,
+        friendliness: rating.friendliness,
+        creativity: rating.creativity,
+        comment: rating.comment,
+        stallId: rating.stallId,
+        userId: user.id,
+        createdAt: new Date().toISOString()
+      }
+    );
+    return {
+      id: doc.$id,
+      selection: doc.selection,
+      friendliness: doc.friendliness,
+      creativity: doc.creativity,
+      comment: doc.comment,
+      stallId: doc.stallId,
+      userId: doc.userId,
+      createdAt: doc.createdAt
+    };
   }
 
-  async getStallRatings(stallId: string): Promise<ApiResponse<Rating[]>> {
-    const response = await this.client.get(`/stalls/${stallId}/ratings`);
-    return response.data;
+  async getStallRatings(stallId: string): Promise<Rating[]> {
+    const response = await this.databases.listDocuments(
+      this.databaseId,
+      'ratings',
+      [Query.equal('stallId', stallId)]
+    );
+    return response.documents.map(doc => ({
+      id: doc.$id,
+      selection: doc.selection,
+      friendliness: doc.friendliness,
+      creativity: doc.creativity,
+      comment: doc.comment,
+      stallId: doc.stallId,
+      userId: doc.userId,
+      createdAt: doc.createdAt
+    }));
   }
 
-  // OCR methods
-  async recognizeText(imageUri: string): Promise<ApiResponse<{ text: string }>> {
-    const formData = new FormData();
-    formData.append('image', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'ocr-image.jpg',
-    } as any);
-
-    const response = await this.client.post('/ocr/recognize', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+  // OCR methods - keeping simple, could use Appwrite Functions for actual OCR
+  async recognizeText(imageUri: string): Promise<{ text: string }> {
+    // Mock OCR for now, replace with actual implementation
+    return { text: 'Mock OCR result: +45 12 34 56 78' };
   }
 }
 

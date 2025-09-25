@@ -12,7 +12,8 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "setup-db": "node scripts/setup-database.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -20,6 +21,7 @@
     "@react-navigation/bottom-tabs": "^7.4.7",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/stack": "^7.4.8",
+    "appwrite": "^20.1.0",
     "axios": "^1.12.2",
     "expo": "~54.0.0",
     "expo-auth-session": "~7.0.8",

@@ -1,10 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
 const AppFooter: React.FC = () => {
   return (
     <View style={styles.footer}>
       <View style={styles.footerContent}>
+        <Image
+          source={require('../assets/logo.png')}
+          style={styles.footerLogo}
+          resizeMode="contain"
+        />
         <Text style={styles.footerText}>
           ©2025 LoppeRater - Sammen hæver vi værdien
         </Text>
@@ -34,6 +39,11 @@ const styles = StyleSheet.create({
   },
   footerContent: {
     alignItems: 'center',
+  },
+  footerLogo: {
+    width: 60,
+    height: 60,
+    marginBottom: 8,
   },
   footerText: {
     fontSize: 12,
