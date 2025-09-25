@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import { BarCodeScanner } from 'expo-barcode-scanner';
 
 import { useAppStore } from '../store';
 import { Rating } from '../types';
@@ -30,6 +35,14 @@ export default function RateStallScreen() {
   const navigation = useNavigation<any>();
 
   const { addRating } = useAppStore();
+
+  // Camera and permissions state
+  const [cameraModalVisible, setCameraModalVisible] = useState(false);
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [facing, setFacing] = useState<CameraType>('back');
+  const [permission, requestPermission] = useCameraPermissions();
+  const [qrPermission, requestQrPermission] = BarCodeScanner.usePermissions();
+  const cameraRef = useRef<any>(null);
 
   // Form state
   const [stallName, setStallName] = useState('');
@@ -52,6 +65,112 @@ export default function RateStallScreen() {
     }
     setPhoneError('');
     return true;
+  };
+
+  // Camera functions
+  const openCamera = async () => {
+    if (!permission) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Permission denied', 'Camera permission is required to take photos');
+        return;
+      }
+    }
+    if (permission && !permission.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Permission denied', 'Camera permission is required to take photos');
+        return;
+      }
+    }
+    setCameraModalVisible(true);
+  };
+
+  const takePicture = async () => {
+    if (cameraRef.current) {
+      try {
+        const photo = await cameraRef.current.takePictureAsync();
+        setCameraModalVisible(false);
+        Alert.alert('Success', 'Photo taken successfully!', [
+          { text: 'OK', onPress: () => console.log('Photo URI:', photo.uri) }
+        ]);
+      } catch (error) {
+        console.error('Error taking picture:', error);
+        Alert.alert('Error', 'Failed to take picture');
+      }
+    }
+  };
+
+  const toggleCameraFacing = () => {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
+  };
+
+  // Gallery function
+  const openGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'Gallery permission is required to select photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      Alert.alert('Success', 'Image selected successfully!', [
+        { text: 'OK', onPress: () => console.log('Image URI:', result.assets[0].uri) }
+      ]);
+    }
+  };
+
+  // QR Scanner function
+  const openQrScanner = async () => {
+    if (!qrPermission) {
+      const { granted } = await requestQrPermission();
+      if (!granted) {
+        Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
+        return;
+      }
+    }
+    if (qrPermission && !qrPermission.granted) {
+      const { granted } = await requestQrPermission();
+      if (!granted) {
+        Alert.alert('Permission denied', 'Camera permission is required to scan QR codes');
+        return;
+      }
+    }
+    setQrModalVisible(true);
+  };
+
+  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+    setQrModalVisible(false);
+    
+    // Check if it's a Danish phone number
+    const phoneMatch = data.match(/(\+45|0045)?[2-9]\d{7}/);
+    if (phoneMatch) {
+      const phoneNumber = phoneMatch[0];
+      setPhoneNumber(phoneNumber);
+      Alert.alert('Success', `Danish phone number detected: ${phoneNumber}`);
+      return;
+    }
+
+    // Check if it's a QR code (could be payment info, etc.)
+    Alert.alert('QR Code Scanned', `Type: ${type}\nData: ${data}`, [
+      { text: 'Use as Phone', onPress: () => {
+        // Try to extract phone number from QR data
+        const extractedPhone = data.match(/(\+45|0045)?[2-9]\d{7}/)?.[0];
+        if (extractedPhone) {
+          setPhoneNumber(extractedPhone);
+        } else {
+          Alert.alert('No phone number found in QR code');
+        }
+      }},
+      { text: 'OK' }
+    ]);
   };
 
   const handleSubmit = async () => {
@@ -123,7 +242,7 @@ export default function RateStallScreen() {
           {/* Phone Number Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Bodens betalingsnummer</Text>
-            <Text style={styles.micro}>Anonymiseres i henhold til GDPR</Text>
+            <Text style={styles.micro}>Alt anonymiseres i henhold til GDPR</Text>
             <TextInput
               style={[styles.textInput, phoneError ? styles.inputError : null]}
               value={phoneNumber}
@@ -142,10 +261,11 @@ export default function RateStallScreen() {
           {/* Photo Section with Fake Buttons */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Vis hvad der er godt eller mindre godt.</Text>
+            <Text style={styles.micro}>Tag et horisontalt billede af boden</Text>
             <View style={styles.photoButtonsContainer}>
               <TouchableOpacity
                 style={styles.photoButton}
-                onPress={() => Alert.alert('Info', 'Dette ville åbne kameraet for at tage et billede')}
+                onPress={openCamera}
               >
                 <Ionicons name="camera" size={24} color="#2196F3" />
                 <Text style={styles.photoButtonText}>Tag billede</Text>
@@ -153,7 +273,7 @@ export default function RateStallScreen() {
 
               <TouchableOpacity
                 style={styles.photoButton}
-                onPress={() => Alert.alert('Info', 'Dette ville åbne galleriet for at vælge et billede')}
+                onPress={openGallery}
               >
                 <Ionicons name="images" size={24} color="#2196F3" />
                 <Text style={styles.photoButtonText}>Vælg fra galleri</Text>
@@ -161,7 +281,7 @@ export default function RateStallScreen() {
 
               <TouchableOpacity
                 style={styles.photoButton}
-                onPress={() => Alert.alert('Info', 'Dette ville scanne QR-koden for MobilePay')}
+                onPress={openQrScanner}
               >
                 <Ionicons name="qr-code" size={24} color="#2196F3" />
                 <Text style={styles.photoButtonText}>Scan QR-kode</Text>
@@ -194,10 +314,78 @@ export default function RateStallScreen() {
             onPress={handleSubmit}
             activeOpacity={0.8}
           >
-            <Text style={styles.submitButtonText}>Send bedømmelse</Text>
+            <Ionicons name="send" size={20} color="white" />
+            <Text style={styles.submitButtonText}>Indsend bedømmelse</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Camera Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={cameraModalVisible}
+        onRequestClose={() => setCameraModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <CameraView
+            style={styles.camera}
+            facing={facing}
+            ref={cameraRef}
+          >
+            <View style={styles.cameraControls}>
+              <TouchableOpacity
+                style={styles.modalCameraButton}
+                onPress={() => setCameraModalVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="white" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.captureButton}
+                onPress={takePicture}
+              >
+                <View style={styles.captureButtonInner} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.modalCameraButton}
+                onPress={toggleCameraFacing}
+              >
+                <Ionicons name="camera-reverse" size={30} color="white" />
+              </TouchableOpacity>
+            </View>
+          </CameraView>
+        </View>
+      </Modal>
+
+      {/* QR Scanner Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={qrModalVisible}
+        onRequestClose={() => setQrModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <BarCodeScanner
+            onBarCodeScanned={qrModalVisible ? handleBarCodeScanned : undefined}
+            style={styles.camera}
+          >
+            <View style={styles.qrOverlay}>
+              <View style={styles.qrFrame} />
+            </View>
+            <View style={styles.qrControls}>
+              <TouchableOpacity
+                style={styles.modalCameraButton}
+                onPress={() => setQrModalVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="white" />
+              </TouchableOpacity>
+              <Text style={styles.qrText}>Scan QR code or Danish phone number</Text>
+            </View>
+          </BarCodeScanner>
+        </View>
+      </Modal>
     </AppLayout>
   );
 }
@@ -331,6 +519,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   submitButtonText: {
     color: 'white',
@@ -357,5 +548,70 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraControls: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  modalCameraButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 50,
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 50,
+    padding: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureButtonInner: {
+    backgroundColor: 'white',
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+  },
+  qrOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrFrame: {
+    width: 250,
+    height: 250,
+    borderWidth: 2,
+    borderColor: 'white',
+    backgroundColor: 'transparent',
+  },
+  qrControls: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  qrText: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
 });
