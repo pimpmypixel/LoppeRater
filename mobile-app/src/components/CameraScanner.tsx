@@ -262,16 +262,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cameraContainer: {
+    flex: 1,
     backgroundColor: 'black',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginVertical: 16,
+    paddingVertical: 20,
   },
   camera: {
-    width: Math.min(Dimensions.get('window').width * 0.9, 400),
-    height: Math.min(Dimensions.get('window').width * 0.9, 400),
+    width: Math.min(Dimensions.get('window').width * 0.8, 350),
+    height: Math.min(Dimensions.get('window').width * 0.8, 350),
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   cameraOverlay: {
     position: 'absolute',

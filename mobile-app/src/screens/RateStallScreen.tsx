@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store';
 import { Rating } from '../types';
 import CameraScanner from '../components/CameraScanner';
-import StarRating from '../components/StarRating';
+import MultiRatingSliders from '../components/StarRating';
 
 interface RouteParams {
   stallId: string;
@@ -38,7 +38,11 @@ export default function RateStallScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [rating, setRating] = useState(0);
+  const [ratings, setRatings] = useState({
+    selection: 5,
+    friendliness: 5,
+    creativity: 5,
+  });
 
   // Camera state - only for native platforms
   const [showCamera, setShowCamera] = useState(false);
@@ -77,8 +81,8 @@ export default function RateStallScreen() {
       return;
     }
 
-    if (rating === 0) {
-      Alert.alert(t('common.error'), 'Vælg venligst en bedømmelse');
+    if (ratings.selection === 0 || ratings.friendliness === 0 || ratings.creativity === 0) {
+      Alert.alert(t('common.error'), 'Vælg venligst bedømmelser for alle kategorier');
       return;
     }
 
@@ -89,10 +93,10 @@ export default function RateStallScreen() {
       const newRating: Omit<Rating, 'id' | 'createdAt'> = {
         stallId: tempStallId,
         userId: 'current-user', // TODO: Get from auth
-        selection: rating, // Use the star rating
-        friendliness: rating,
-        creativity: rating,
-        comment: `Stall: ${stallName}, Phone: ${phoneNumber}, Rating: ${rating}/10`,
+        selection: ratings.selection,
+        friendliness: ratings.friendliness,
+        creativity: ratings.creativity,
+        comment: `Stall: ${stallName}, Phone: ${phoneNumber}, Ratings: Selection ${ratings.selection}/10, Friendliness ${ratings.friendliness}/10, Creativity ${ratings.creativity}/10`,
       };
 
       await addRating(newRating);
@@ -182,7 +186,8 @@ export default function RateStallScreen() {
                 style={styles.cameraButton}
               >
                 <Ionicons name="camera" size={24} color="#2196F3" />
-                <Text style={styles.cameraButtonText}>Scan bod info</Text>
+                <Text style={styles.cameraButtonText}>Skyd et billede af boden!</Text>
+                <Text style={[styles.cameraButtonText, { fontSize: 12 }]}>Vis hvad der er godt eller mindre godt.</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -199,11 +204,10 @@ export default function RateStallScreen() {
             />
           </View>
 
-          {/* Star Rating */}
-          <StarRating
-            rating={rating}
-            onRatingChange={setRating}
-            maxRating={10}
+          {/* Multi Rating Sliders */}
+          <MultiRatingSliders
+            ratings={ratings}
+            onRatingsChange={setRatings}
           />
 
           {/* Submit Button */}

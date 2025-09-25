@@ -1,121 +1,156 @@
-# LoppeRate Mobile App
+# LoppeRater - Danish Market Stall Rating App
 
-React Native Expo app for rating Danish flea market stalls.
+A React Native Expo application for rating stalls at Danish flea markets (LoppeMarkeder). Scan stall information with OCR, rate stalls on multiple criteria, and help fellow shoppers find the best deals.
 
-## Development Setup
+## 🌟 Features
+
+- **📱 Cross-platform**: iOS, Android, and Web support via Expo
+- **📷 Camera OCR**: Scan stall information and phone numbers automatically
+- **⭐ Multi-criteria Rating**: Rate stalls on Selection, Friendliness, and Creativity
+- **🇩🇰 Danish Localization**: Full Danish language support
+- **🎨 Modern UI**: Clean, intuitive interface with visual feedback
+- **📍 Location Services**: GPS integration for market discovery
+- **🔒 Secure**: Secure storage with expo-secure-store
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- **Bun** (package manager) - `curl -fsSL https://bun.sh/install | bash`
-- **Node.js 18+** via fnm - `curl -fsSL https://fnm.vercel.app/install | bash && fnm install 18 && fnm use 18`
-- **Expo CLI** - `bun install -g @expo/cli`
-- **EAS CLI** - `bun install -g eas-cli`
-- **Xcode** (for iOS simulator)
-- **Android Studio** (optional - using physical device)
+- **Bun** package manager: `curl -fsSL https://bun.sh/install | bash`
+- **Node.js 18+** via fnm: `curl -fsSL https://fnm.vercel.app/install | bash && fnm install 18`
+- **Expo CLI**: `bun install -g @expo/cli`
 
-### Getting Started
+### Installation
 
-1. **Install dependencies:**
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/pimpmypixel/LoppeRater.git
+   cd LoppeRater/mobile-app
+   ```
+
+2. **Install dependencies:**
    ```bash
    bun install
    ```
 
-2. **Set up environment variables:**
+3. **Set up environment:**
    ```bash
    cp .env.example .env.local
-   # Edit .env.local with your actual API keys
+   # Edit .env.local with your configuration
    ```
 
-3. **Start the development server:**
+4. **Start development server:**
    ```bash
    bun start
    ```
 
-4. **Run on devices:**
+5. **Run on devices:**
    ```bash
-   # iOS Simulator (macOS only)
-   bun ios
-   
-   # Android Device (OnePlus 10 Pro)
-   bun android
-   
-   # Web (for quick UI testing)
-   bun web
+   bun ios        # iOS Simulator
+   bun android    # Android device
+   bun web        # Web browser
    ```
 
-### OnePlus 10 Pro Setup
-1. Enable Developer Options: Settings → About Phone → Tap Build Number 7 times
-2. Enable USB Debugging: Settings → Developer Options → USB Debugging
-3. Connect via USB and authorize computer
-4. Verify: `adb devices` should show device
+## 📱 Usage
+
+### Rating a Stall
+1. **Scan Information**: Use the camera to scan stall details and phone numbers
+2. **Enter Details**: Add stall name and contact information
+3. **Rate Quality**: Use sliders to rate Selection, Friendliness, and Creativity (1-10)
+4. **Submit**: Save your rating to help other shoppers
+
+### Camera Features
+- **OCR Processing**: Automatically detects Danish phone numbers
+- **Square View**: Centered camera interface for consistent scanning
+- **Permission Handling**: Graceful camera permission requests
+
+## 🛠️ Development
+
+### Project Structure
+```
+mobile-app/
+├── src/
+│   ├── components/     # Reusable UI components
+│   │   ├── CameraScanner.tsx    # Camera with OCR
+│   │   └── StarRating.tsx       # Multi-slider rating
+│   ├── screens/        # Screen components
+│   ├── navigation/     # App navigation
+│   ├── store/          # Zustand state management
+│   ├── services/       # API integration
+│   ├── i18n/           # Danish translations
+│   ├── types/          # TypeScript definitions
+│   └── utils/          # Helper functions
+├── assets/             # Images and icons
+└── *.config.*         # Configuration files
+```
+
+### Key Technologies
+- **React Native 0.81.4** with Expo SDK 54
+- **TypeScript** for type safety
+- **Zustand** for state management
+- **React Navigation 6** for routing
+- **Expo Camera** for camera functionality
+- **i18next** for internationalization
 
 ### Development Commands
-
 ```bash
-# Code quality
-bun run lint          # Run ESLint
-bun run lint:fix      # Fix ESLint issues
-bun run format        # Format with Prettier
-bun run type-check    # TypeScript type checking
-
-# Building
-bun run build:android # Build Android APK/AAB
+bun run lint          # ESLint code quality
+bun run lint:fix      # Auto-fix linting issues
+bun run format        # Prettier code formatting
+bun run type-check    # TypeScript compilation check
+bun run build:android # Build Android APK
 bun run build:ios     # Build iOS app
 ```
 
-### Project Structure
-
-```
-src/
-├── components/       # Reusable UI components
-├── screens/         # Screen components
-├── navigation/      # Navigation setup
-├── store/          # Zustand state management
-├── services/       # API services
-├── i18n/           # Internationalization
-├── types/          # TypeScript type definitions
-└── utils/          # Helper functions
-```
-
-### Key Features Implemented
-
-- ✅ Project setup with Expo 51 + React Native 0.74
-- ✅ TypeScript configuration
-- ✅ Danish internationalization (i18next)
-- ✅ Navigation setup (React Navigation 6)
-- ✅ State management (Zustand)
-- ✅ API service structure
-- ✅ Basic screens (Welcome, Markets, Settings)
-- ✅ Location services integration
-- ✅ Authentication flow structure
-- ✅ Utility functions for Danish phone validation
-
-### Next Steps
-
-1. **Backend Integration:** Connect to Laravel API when ready
-2. **Camera/OCR Implementation:** Implement MobilePay number scanning
-3. **Rating System:** Build star rating component
-4. **Authentication:** Implement Google/Facebook OAuth
-5. **Push Notifications:** Set up notification handling
-6. **Testing:** Add unit and integration tests
+## 🔧 Configuration
 
 ### Environment Variables
-
 ```bash
+# API Configuration
 EXPO_PUBLIC_API_BASE_URL=http://localhost:8000/api
+
+# Authentication
 EXPO_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=your_google_client_id
 EXPO_PUBLIC_FACEBOOK_APP_ID=your_facebook_app_id
+
+# Services
 EXPO_PUBLIC_TWILIO_ACCOUNT_SID=your_twilio_sid
 EXPO_PUBLIC_MAPS_API_KEY=your_google_maps_key
 ```
 
-### Architecture
+### Permissions
+The app requires the following permissions:
+- **Camera**: For scanning stall information
+- **Location**: For finding nearby markets
+- **Storage**: For saving ratings locally
 
-- **Frontend:** React Native + Expo 51
-- **State:** Zustand for global state management
-- **Navigation:** React Navigation 6 with stack + tabs
-- **Styling:** React Native StyleSheet (ready for NativeWind)
-- **i18n:** react-i18next for Danish localization
-- **API:** Axios with interceptors for authentication
-- **Storage:** expo-secure-store + AsyncStorage
-- **Location:** expo-location for GPS features
-- **Camera:** expo-camera for photos + OCR
+## 📊 Rating System
+
+Stalls are rated on three criteria:
+- **Selection** (1-10): Quality and variety of items
+- **Friendliness** (1-10): Seller helpfulness and customer service
+- **Creativity** (1-10): Unique or creative items and presentation
+
+## 🌍 Localization
+
+The app is fully localized for Danish with:
+- Danish phone number validation
+- Local market terminology
+- Cultural context for flea market shopping
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Built with Expo and React Native
+- Danish flea market community
+- Open source contributors
