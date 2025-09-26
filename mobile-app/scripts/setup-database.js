@@ -43,6 +43,10 @@ async function setupDatabase() {
 
         // Add new attributes to photos collection using direct API calls
         const photoAttributes = [
+            // Relationship attributes
+            { key: 'userId', type: 'string', size: 255, required: true, default: null },
+            { key: 'stallId', type: 'string', size: 255, required: false, default: null },
+            // Photo processing attributes
             { key: 'rawFileId', type: 'string', size: 255, required: false, default: null },
             { key: 'processedFileId', type: 'string', size: 255, required: false, default: null },
             { key: 'processingStatus', type: 'string', size: 50, required: false, default: 'pending' },
@@ -105,6 +109,7 @@ async function setupDatabase() {
         console.log('🎉 Database attributes added successfully!');
         console.log('');
         console.log('📋 Summary:');
+        console.log('- Added relationship attributes: userId (required), stallId (optional)');
         console.log('- Added photo processing attributes to photos table');
         console.log('- Fields: rawFileId, processedFileId, processingStatus, facesDetected, processingStartedAt, processingCompletedAt');
         console.log('');

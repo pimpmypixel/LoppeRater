@@ -268,9 +268,9 @@ class ApiService {
       const rawFileName = `raw_photo_${Date.now()}.jpg`;
       const file = new File([blob], rawFileName, { type: 'image/jpeg' });
 
-      // Upload raw photo to photos_raw bucket
+      // Upload raw photo to single photos bucket
       const rawFile = await this.storage.createFile(
-        'photos_raw', // Raw photos bucket
+        'photos', // Single bucket for both raw and processed photos
         ID.unique(),
         file
       );
@@ -285,12 +285,12 @@ class ApiService {
           filename: rawFileName,
           mimeType: file.type,
           size: file.size,
-          bucketId: 'photos_raw',
+          bucketId: 'photos', // Single bucket
           userId: user.id,
           stallId: stallId || null,
           uploadedAt: new Date().toISOString(),
           caption: caption || null,
-          rawFileId: rawFile.$id,
+          rawFileId: rawFile.$id, // Track raw file ID
           processingStatus: 'pending'
         }
       );
@@ -327,8 +327,7 @@ class ApiService {
               processedFileId: result.processedFileId,
               facesDetected: result.facesDetected,
               processingCompletedAt: new Date().toISOString(),
-              bucketId: 'photos_processed',
-              fileId: result.processedFileId
+              fileId: result.processedFileId // Update to point to processed file
             }
           );
 
@@ -339,20 +338,20 @@ class ApiService {
             filename: `processed_${rawFile.$id}.jpg`,
             mimeType: file.type,
             size: file.size,
-            bucketId: 'photos_processed',
+            bucketId: 'photos', // Single bucket
             userId: user.id,
             stallId: stallId,
             uploadedAt: photoDoc.uploadedAt,
             caption: photoDoc.caption,
             url: result.processedPhotoUrl,
-            rawFileId: rawFile.$id,
-            processedFileId: result.processedFileId,
+            rawFileId: rawFile.$id, // Original raw file ID
+            processedFileId: result.processedFileId, // Processed file ID
             processingStatus: 'completed',
             facesDetected: result.facesDetected,
             processingCompletedAt: new Date().toISOString()
           };
         } else {
-          // Processing failed
+          // Processing failed - keep raw photo
           await this.tablesDB.updateRow(
             this.databaseId,
             'photos',
@@ -363,19 +362,20 @@ class ApiService {
           );
 
           // Return raw photo as fallback
-          const rawUrl = this.storage.getFileView('photos_raw', rawFile.$id);
+          const rawUrl = this.storage.getFileView('photos', rawFile.$id);
           return {
             id: photoDoc.$id,
             fileId: rawFile.$id,
             filename: rawFileName,
             mimeType: file.type,
             size: file.size,
-            bucketId: 'photos_raw',
+            bucketId: 'photos', // Single bucket
             userId: user.id,
             stallId: stallId,
             uploadedAt: photoDoc.uploadedAt,
             caption: photoDoc.caption,
             url: rawUrl.toString(),
+            rawFileId: rawFile.$id,
             processingStatus: 'failed'
           };
         }
@@ -392,19 +392,20 @@ class ApiService {
           }
         );
 
-        const rawUrl = this.storage.getFileView('photos_raw', rawFile.$id);
+        const rawUrl = this.storage.getFileView('photos', rawFile.$id);
         return {
           id: photoDoc.$id,
           fileId: rawFile.$id,
           filename: rawFileName,
           mimeType: file.type,
           size: file.size,
-          bucketId: 'photos_raw',
+          bucketId: 'photos', // Single bucket
           userId: user.id,
           stallId: stallId,
           uploadedAt: photoDoc.uploadedAt,
           caption: photoDoc.caption,
           url: rawUrl.toString(),
+          rawFileId: rawFile.$id,
           processingStatus: 'failed'
         };
       }
@@ -481,19 +482,38 @@ class ApiService {
       throw new Error('Unauthorized to delete this photo');
     }
 
-    // Delete from storage
-    await this.storage.deleteFile(photoDoc.bucketId, photoDoc.fileId);
+    // Delete files from single photos bucket
+    await this.storage.deleteFile('photos', photoDoc.rawFileId);
+    if (photoDoc.processedFileId && photoDoc.processedFileId !== photoDoc.rawFileId) {
+      await this.storage.deleteFile('photos', photoDoc.processedFileId);
+    }
 
     // Delete from database
     await this.tablesDB.deleteRow(this.databaseId, 'photos', photoId);
   }
-  
 
+  // Helper methods for accessing photo URLs
+  getRawPhotoUrl(fileId: string): string {
+    return this.storage.getFileView('photos', fileId).toString();
+  }
 
-  // OCR methods - keeping simple, could use Appwrite Functions for actual OCR
-  async recognizeText(imageUri: string): Promise<{ text: string }> {
-    // Mock OCR for now, replace with actual implementation
-    return { text: 'Mock OCR result: +45 12 34 56 78' };
+  getProcessedPhotoUrl(fileId: string): string {
+    return this.storage.getFileView('photos', fileId).toString();
+  }
+
+  // Get both raw and processed URLs for a photo record
+  getPhotoUrls(photo: Photo): { rawUrl?: string; processedUrl?: string; displayUrl: string } {
+    const rawUrl = photo.rawFileId ? this.getRawPhotoUrl(photo.rawFileId) : undefined;
+    const processedUrl = photo.processedFileId ? this.getProcessedPhotoUrl(photo.processedFileId) : undefined;
+
+    // Use processed URL if available and completed, otherwise use raw URL
+    const displayUrl = (photo.processingStatus === 'completed' && processedUrl) ? processedUrl : (rawUrl || photo.url || '');
+
+    return {
+      rawUrl,
+      processedUrl,
+      displayUrl
+    };
   }
 }
 

@@ -23,7 +23,7 @@ from datetime import datetime
 def main(context):
     """
     Face blur function for LoppeRater photos
-    Processes raw photos from photos_raw bucket and uploads processed versions to photos_processed bucket
+    Processes photos in the photos bucket, replacing originals with blurred versions when faces are detected
     """
 
     try:
@@ -76,9 +76,9 @@ def main(context):
         except Exception as e:
             context.log(f"Failed to update processing status: {str(e)}")
 
-        # Download the raw image from photos_raw bucket
+        # Download the raw image from photos bucket
         try:
-            file_response = storage.get_file_download('photos_raw', raw_file_id)
+            file_response = storage.get_file_download('photos', raw_file_id)
             image_data = file_response.content
         except Exception as e:
             # Update status to failed
@@ -136,9 +136,9 @@ def main(context):
         faces_detected = len(faces)
 
         if faces_detected == 0:
-            # No faces detected, use original image as processed
-            processed_image_data = image_data
+            # No faces detected, keep original image
             processed_file_id = raw_file_id
+            processed_image_data = image_data
         else:
             # Blur detected faces
             for (x, y, w, h) in faces:
@@ -175,13 +175,15 @@ def main(context):
 
             processed_image_data = encoded_image.tobytes()
 
-            # Upload processed image to photos_processed bucket
-            processed_file_name = f"processed_{raw_file_id}.jpg"
-
+            # Replace original file with processed version
             try:
+                # Delete original file
+                storage.delete_file('photos', raw_file_id)
+
+                # Upload processed image with same ID
                 processed_file = storage.create_file(
-                    bucket_id='photos_processed',
-                    file_id=f"processed_{raw_file_id}",
+                    bucket_id='photos',
+                    file_id=raw_file_id,  # Use same ID to replace
                     file=io.BytesIO(processed_image_data),
                     permissions=['read("any")']
                 )
@@ -203,7 +205,7 @@ def main(context):
 
                 return context.res.json({
                     'success': False,
-                    'error': f'Failed to upload processed image: {str(e)}'
+                    'error': f'Failed to replace image: {str(e)}'
                 })
 
         # Update database record with processing results
@@ -213,12 +215,10 @@ def main(context):
                 'processingCompletedAt': datetime.utcnow().isoformat(),
                 'facesDetected': faces_detected,
                 'processedFileId': processed_file_id,
-                'bucketId': 'photos_processed'
+                'bucketId': 'photos'
             }
 
             if faces_detected > 0:
-                update_data['fileId'] = processed_file_id
-                update_data['filename'] = f"processed_{raw_file_id}.jpg"
                 update_data['size'] = len(processed_image_data)
 
             databases.update_document(
@@ -231,7 +231,7 @@ def main(context):
             context.log(f"Failed to update database record: {str(e)}")
 
         # Generate processed photo URL
-        processed_photo_url = f"{appwrite_endpoint}/storage/buckets/photos_processed/files/{processed_file_id}/view"
+        processed_photo_url = f"{appwrite_endpoint}/storage/buckets/photos/files/{processed_file_id}/view"
 
         return context.res.json({
             'success': True,
