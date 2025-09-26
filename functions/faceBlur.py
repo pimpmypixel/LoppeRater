@@ -1,0 +1,148 @@
+import json
+import base64
+import io
+from PIL import Image, ImageFilter
+import cv2
+import numpy as np
+import requests
+from appwrite.client import Client
+from appwrite.services.storage import Storage
+
+def main(context):
+    """
+    Face blur function for LoppeRater photos
+    Blurs faces in uploaded images to protect privacy
+    """
+
+    try:
+        # Get environment variables
+        appwrite_endpoint = context.env.get('APPWRITE_ENDPOINT', 'https://cloud.appwrite.io/v1')
+        appwrite_project = context.env.get('APPWRITE_PROJECT_ID')
+        appwrite_api_key = context.env.get('APPWRITE_API_KEY')
+
+        # Initialize Appwrite client
+        client = Client()
+        client.set_endpoint(appwrite_endpoint)
+        client.set_project(appwrite_project)
+        client.set_key(appwrite_api_key)
+
+        storage = Storage(client)
+
+        # Get function payload
+        payload = context.req.json() if context.req.body else {}
+
+        bucket_id = payload.get('bucketId', 'photos')
+        file_id = payload.get('fileId')
+
+        if not file_id:
+            return context.res.json({
+                'success': False,
+                'error': 'fileId is required'
+            })
+
+        # Download the original image
+        try:
+            file_response = storage.get_file_download(bucket_id, file_id)
+            image_data = file_response.content
+        except Exception as e:
+            return context.res.json({
+                'success': False,
+                'error': f'Failed to download file: {str(e)}'
+            })
+
+        # Convert to numpy array for OpenCV processing
+        nparr = np.frombuffer(image_data, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            return context.res.json({
+                'success': False,
+                'error': 'Invalid image format'
+            })
+
+        # Load Haar cascade for face detection
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+        # Convert to grayscale for face detection
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        # Detect faces
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+        if len(faces) == 0:
+            # No faces detected, return original image info
+            return context.res.json({
+                'success': True,
+                'facesDetected': 0,
+                'message': 'No faces detected, image unchanged'
+            })
+
+        # Blur detected faces
+        for (x, y, w, h) in faces:
+            # Extract face region
+            face_roi = image[y:y+h, x:x+w]
+
+            # Apply Gaussian blur
+            blurred_face = cv2.GaussianBlur(face_roi, (51, 51), 30)
+
+            # Replace original face with blurred version
+            image[y:y+h, x:x+w] = blurred_face
+
+        # Convert back to bytes
+        success, encoded_image = cv2.imencode('.jpg', image)
+        if not success:
+            return context.res.json({
+                'success': False,
+                'error': 'Failed to encode processed image'
+            })
+
+        processed_image_data = encoded_image.tobytes()
+
+        # Upload processed image back to storage (as a new file)
+        processed_file_name = f"blurred_{file_id}.jpg"
+
+        try:
+            # Create new file with processed image
+            processed_file = storage.create_file(
+                bucket_id=bucket_id,
+                file_id=f"blurred_{file_id}",
+                file=io.BytesIO(processed_image_data),
+                permissions=['read("any")']
+            )
+
+            return context.res.json({
+                'success': True,
+                'facesDetected': len(faces),
+                'originalFileId': file_id,
+                'processedFileId': processed_file['$id'],
+                'message': f'Successfully blurred {len(faces)} face(s)'
+            })
+
+        except Exception as e:
+            return context.res.json({
+                'success': False,
+                'error': f'Failed to upload processed image: {str(e)}'
+            })
+
+    except Exception as e:
+        return context.res.json({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        })
+
+# For local testing
+if __name__ == "__main__":
+    # Mock context for testing
+    class MockContext:
+        def __init__(self):
+            self.env = {
+                'APPWRITE_ENDPOINT': 'https://cloud.appwrite.io/v1',
+                'APPWRITE_PROJECT_ID': '68d54fa1002fef97f2b6',
+                'APPWRITE_API_KEY': 'standard_deffa13324835e48c715e294c5aef557233d75d1fd20eb0749612971998a8592c7654837c3aa141a23b6562406ed2b1f79a6a7c2718cada3a24120913d7a1278cd9aab5750855dbc01f4ce042ca0f8c2d1d3f6729a63d24503f57582b8906c85bfc856b96e8c13d5dcf4e766909192774fb2474d6ac3024b5dbec24b2731d213'
+            }
+            self.req = type('obj', (object,), {'json': lambda: {'bucketId': 'photos', 'fileId': 'test'}})()
+            self.res = type('obj', (object,), {'json': lambda data: data})()
+
+    context = MockContext()
+    result = main(context)
+    print(json.dumps(result, indent=2))

@@ -48,6 +48,20 @@ export interface Rating {
   createdAt: string;
 }
 
+export interface Photo {
+  id: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  bucketId: string;
+  userId: string;
+  stallId?: string;
+  uploadedAt: string;
+  caption?: string;
+  url?: string; // For display purposes
+}
+
 export interface NavigationParamList extends Record<string, object | undefined> {
   Welcome: undefined;
   Main: undefined;

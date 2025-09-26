@@ -1,5 +1,5 @@
 {
-	"servers": {
+    "servers": {
         "context7": {
             "type": "http",
             "url": "https://mcp.context7.com/mcp",
@@ -7,6 +7,22 @@
                 "CONTEXT7_API_KEY": "ctx7sk-6b5db23e-c89c-4c58-bc32-0e0fd78aecd0"
             }
         },
-	},
-	"inputs": []
+        "appwrite-api": {
+            "command": "uvx",
+            "args": [
+                "mcp-server-appwrite",
+                "--sites"
+            ],
+            "env": {
+                "APPWRITE_PROJECT_ID": "68d54fa1002fef97f2b6",
+                "APPWRITE_API_KEY": "standard_deffa13324835e48c715e294c5aef557233d75d1fd20eb0749612971998a8592c7654837c3aa141a23b6562406ed2b1f79a6a7c2718cada3a24120913d7a1278cd9aab5750855dbc01f4ce042ca0f8c2d1d3f6729a63d24503f57582b8906c85bfc856b96e8c13d5dcf4e766909192774fb2474d6ac3024b5dbec24b2731d213",
+                "APPWRITE_ENDPOINT": "https://frankfurt.cloud.appwrite.io/v1"
+            }
+        },
+        "appwrite-docs": {
+            "url": "https://mcp-for-docs.appwrite.io",
+            "type": "http"
+        }
+    },
+    "inputs": []
 }

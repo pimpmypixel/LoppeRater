@@ -6,7 +6,7 @@ const AppFooter: React.FC = () => {
     <View style={styles.footer}>
       <View style={styles.footerContent}>
         <Image
-          source={require('../assets/logo.png')}
+          source={require('../../assets/logo.png')}
           style={styles.footerLogo}
           resizeMode="contain"
         />

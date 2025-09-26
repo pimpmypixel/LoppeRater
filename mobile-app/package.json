@@ -13,7 +13,10 @@
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "setup-db": "node scripts/setup-database.js"
+    "setup:infrastructure": "./scripts/setup-infrastructure.sh",
+    "setup:database": "node scripts/setup-database.js",
+    "setup:functions": "./scripts/setup-functions.sh",
+    "setup:all": "./scripts/setup-all.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

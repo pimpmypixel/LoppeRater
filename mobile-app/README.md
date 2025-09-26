@@ -99,9 +99,64 @@ bun run format        # Prettier code formatting
 bun run type-check    # TypeScript compilation check
 bun run build:android # Build Android APK
 bun run build:ios     # Build iOS app
+
+# Setup commands
+bun run setup:all           # Complete infrastructure setup
+bun run setup:infrastructure # Storage buckets only
+bun run setup:database      # Database tables only
+bun run setup:functions     # Functions only
 ```
 
-## 🔧 Configuration
+## �️ Backend Infrastructure
+
+LoppeRater uses Appwrite v2.0 for backend services including database, storage, and serverless functions.
+
+### Appwrite Setup
+
+1. **Create Appwrite Project:**
+   - Sign up at [Appwrite Cloud](https://cloud.appwrite.io)
+   - Create a new project called "LoppeRater"
+
+2. **Configure Environment:**
+   ```bash
+   # .env.local
+   EXPO_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+   EXPO_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+   APPWRITE_API_KEY=your_api_key  # Server-side only
+   ```
+
+3. **Run Infrastructure Setup:**
+   ```bash
+   # Complete automated setup (recommended)
+   bun run setup:all
+
+   # Or run individual components
+   bun run setup:infrastructure  # Storage buckets
+   bun run setup:database        # Database tables
+   bun run setup:functions       # Serverless functions
+   ```
+
+### Database Schema
+
+The app uses the following tables in the `lopperater` database:
+
+- **markets**: Market information with location data
+- **stalls**: Stall details linked to markets and vendors
+- **ratings**: User ratings with multiple criteria
+- **photos**: Photo metadata with face blur processing
+- **roles**: User roles and permissions
+- **users**: Extended user profiles
+
+### Storage & Functions
+
+- **Storage Bucket**: `photos` - For user-uploaded images (10MB limit, image files only)
+- **Function**: `faceBlur` - Python function for automatic face detection and blurring
+
+### Manual Setup
+
+If automated setup fails, follow the detailed instructions in `DATABASE_SETUP.md`.
+
+## �🔧 Configuration
 
 ### Environment Variables
 ```bash
