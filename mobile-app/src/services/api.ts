@@ -1,4 +1,4 @@
-import { Client, TablesDB, Account, Storage, ID, Query } from 'appwrite';
+import { Client, TablesDB, Account, Storage, ID, Query, Functions } from 'appwrite';
 import { ApiResponse, Market, Stall, Rating, User, Photo } from '../types';
 
 class ApiService {
@@ -6,6 +6,7 @@ class ApiService {
   private tablesDB: TablesDB;
   private account: Account;
   private storage: Storage;
+  private functions: Functions;
   private databaseId: string;
 
   constructor() {
@@ -18,6 +19,7 @@ class ApiService {
     this.tablesDB = new TablesDB(this.client);
     this.account = new Account(this.client);
     this.storage = new Storage(this.client);
+    this.functions = new Functions(this.client);
   }
 
   // Auth methods
@@ -263,49 +265,149 @@ class ApiService {
       const blob = await response.blob();
 
       // Create a File object from blob
-      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const rawFileName = `raw_photo_${Date.now()}.jpg`;
+      const file = new File([blob], rawFileName, { type: 'image/jpeg' });
 
-      // Upload to storage
-      const uploadedFile = await this.storage.createFile(
-        'photos', // bucketId
+      // Upload raw photo to photos_raw bucket
+      const rawFile = await this.storage.createFile(
+        'photos_raw', // Raw photos bucket
         ID.unique(),
         file
       );
 
-      // Create photo record in database
+      // Create photo record in database with processing status
       const photoDoc = await this.tablesDB.createRow(
         this.databaseId,
         'photos',
         ID.unique(),
         {
-          fileId: uploadedFile.$id,
-          filename: file.name,
+          fileId: rawFile.$id,
+          filename: rawFileName,
           mimeType: file.type,
           size: file.size,
-          bucketId: 'photos',
+          bucketId: 'photos_raw',
           userId: user.id,
           stallId: stallId || null,
           uploadedAt: new Date().toISOString(),
-          caption: caption || null
+          caption: caption || null,
+          rawFileId: rawFile.$id,
+          processingStatus: 'pending'
         }
       );
 
-      // Get file URL for display
-      const fileUrl = this.storage.getFileView('photos', uploadedFile.$id);
+      // Call faceBlur function to process the photo
+      try {
+        const functionResponse = await this.functions.createExecution(
+          'faceBlur', // Function ID
+          JSON.stringify({
+            rawFileId: rawFile.$id,
+            stallId: stallId,
+            userId: user.id,
+            photoRecordId: photoDoc.$id
+          })
+        );
 
-      return {
-        id: photoDoc.$id,
-        fileId: uploadedFile.$id,
-        filename: photoDoc.filename,
-        mimeType: photoDoc.mimeType,
-        size: photoDoc.size,
-        bucketId: 'photos',
-        userId: user.id,
-        stallId: stallId,
-        uploadedAt: photoDoc.uploadedAt,
-        caption: photoDoc.caption,
-        url: fileUrl.toString()
-      };
+        // Parse the function response
+        let result;
+        try {
+          result = JSON.parse((functionResponse as any).responseBody || (functionResponse as any).response || '{}');
+        } catch (parseError) {
+          console.error('Failed to parse function response:', functionResponse);
+          result = {};
+        }
+
+        if (result.success) {
+          // Update photo record with processed information
+          await this.tablesDB.updateRow(
+            this.databaseId,
+            'photos',
+            photoDoc.$id,
+            {
+              processingStatus: 'completed',
+              processedFileId: result.processedFileId,
+              facesDetected: result.facesDetected,
+              processingCompletedAt: new Date().toISOString(),
+              bucketId: 'photos_processed',
+              fileId: result.processedFileId
+            }
+          );
+
+          // Return processed photo info
+          return {
+            id: photoDoc.$id,
+            fileId: result.processedFileId,
+            filename: `processed_${rawFile.$id}.jpg`,
+            mimeType: file.type,
+            size: file.size,
+            bucketId: 'photos_processed',
+            userId: user.id,
+            stallId: stallId,
+            uploadedAt: photoDoc.uploadedAt,
+            caption: photoDoc.caption,
+            url: result.processedPhotoUrl,
+            rawFileId: rawFile.$id,
+            processedFileId: result.processedFileId,
+            processingStatus: 'completed',
+            facesDetected: result.facesDetected,
+            processingCompletedAt: new Date().toISOString()
+          };
+        } else {
+          // Processing failed
+          await this.tablesDB.updateRow(
+            this.databaseId,
+            'photos',
+            photoDoc.$id,
+            {
+              processingStatus: 'failed'
+            }
+          );
+
+          // Return raw photo as fallback
+          const rawUrl = this.storage.getFileView('photos_raw', rawFile.$id);
+          return {
+            id: photoDoc.$id,
+            fileId: rawFile.$id,
+            filename: rawFileName,
+            mimeType: file.type,
+            size: file.size,
+            bucketId: 'photos_raw',
+            userId: user.id,
+            stallId: stallId,
+            uploadedAt: photoDoc.uploadedAt,
+            caption: photoDoc.caption,
+            url: rawUrl.toString(),
+            processingStatus: 'failed'
+          };
+        }
+      } catch (functionError) {
+        console.error('Face blur function error:', functionError);
+
+        // Update status to failed and return raw photo
+        await this.tablesDB.updateRow(
+          this.databaseId,
+          'photos',
+          photoDoc.$id,
+          {
+            processingStatus: 'failed'
+          }
+        );
+
+        const rawUrl = this.storage.getFileView('photos_raw', rawFile.$id);
+        return {
+          id: photoDoc.$id,
+          fileId: rawFile.$id,
+          filename: rawFileName,
+          mimeType: file.type,
+          size: file.size,
+          bucketId: 'photos_raw',
+          userId: user.id,
+          stallId: stallId,
+          uploadedAt: photoDoc.uploadedAt,
+          caption: photoDoc.caption,
+          url: rawUrl.toString(),
+          processingStatus: 'failed'
+        };
+      }
     } catch (error) {
       console.error('Photo upload error:', error);
       throw error;
@@ -330,7 +432,13 @@ class ApiService {
       stallId: row.stallId,
       uploadedAt: row.uploadedAt,
       caption: row.caption,
-      url: this.storage.getFileView(row.bucketId, row.fileId).toString()
+      url: this.storage.getFileView(row.bucketId, row.fileId).toString(),
+      rawFileId: row.rawFileId,
+      processedFileId: row.processedFileId,
+      processingStatus: row.processingStatus,
+      facesDetected: row.facesDetected,
+      processingStartedAt: row.processingStartedAt,
+      processingCompletedAt: row.processingCompletedAt
     }));
   }
 
@@ -352,7 +460,13 @@ class ApiService {
       stallId: row.stallId,
       uploadedAt: row.uploadedAt,
       caption: row.caption,
-      url: this.storage.getFileView(row.bucketId, row.fileId).toString()
+      url: this.storage.getFileView(row.bucketId, row.fileId).toString(),
+      rawFileId: row.rawFileId,
+      processedFileId: row.processedFileId,
+      processingStatus: row.processingStatus,
+      facesDetected: row.facesDetected,
+      processingStartedAt: row.processingStartedAt,
+      processingCompletedAt: row.processingCompletedAt
     }));
   }
 

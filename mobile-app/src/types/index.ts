@@ -60,6 +60,13 @@ export interface Photo {
   uploadedAt: string;
   caption?: string;
   url?: string; // For display purposes
+  // Photo processing fields
+  rawFileId?: string;
+  processedFileId?: string;
+  processingStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  facesDetected?: number;
+  processingStartedAt?: string;
+  processingCompletedAt?: string;
 }
 
 export interface NavigationParamList extends Record<string, object | undefined> {

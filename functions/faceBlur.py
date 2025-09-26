@@ -8,10 +8,22 @@ import requests
 from appwrite.client import Client
 from appwrite.services.storage import Storage
 
+import json
+import base64
+import io
+from PIL import Image, ImageFilter
+import cv2
+import numpy as np
+import requests
+from appwrite.client import Client
+from appwrite.services.storage import Storage
+from appwrite.services.databases import Databases
+from datetime import datetime
+
 def main(context):
     """
     Face blur function for LoppeRater photos
-    Blurs faces in uploaded images to protect privacy
+    Processes raw photos from photos_raw bucket and uploads processed versions to photos_processed bucket
     """
 
     try:
@@ -19,6 +31,7 @@ def main(context):
         appwrite_endpoint = context.env.get('APPWRITE_ENDPOINT', 'https://cloud.appwrite.io/v1')
         appwrite_project = context.env.get('APPWRITE_PROJECT_ID')
         appwrite_api_key = context.env.get('APPWRITE_API_KEY')
+        database_id = context.env.get('DATABASE_ID', 'lopperater')
 
         # Initialize Appwrite client
         client = Client()
@@ -27,27 +40,64 @@ def main(context):
         client.set_key(appwrite_api_key)
 
         storage = Storage(client)
+        databases = Databases(client)
 
         # Get function payload
         payload = context.req.json() if context.req.body else {}
 
-        bucket_id = payload.get('bucketId', 'photos')
-        file_id = payload.get('fileId')
+        raw_file_id = payload.get('rawFileId')
+        stall_id = payload.get('stallId')
+        user_id = payload.get('userId')
+        photo_record_id = payload.get('photoRecordId')
 
-        if not file_id:
+        if not raw_file_id:
             return context.res.json({
                 'success': False,
-                'error': 'fileId is required'
+                'error': 'rawFileId is required'
             })
 
-        # Download the original image
-        try:
-            file_response = storage.get_file_download(bucket_id, file_id)
-            image_data = file_response.content
-        except Exception as e:
+        if not photo_record_id:
             return context.res.json({
                 'success': False,
-                'error': f'Failed to download file: {str(e)}'
+                'error': 'photoRecordId is required'
+            })
+
+        # Update processing status to 'processing'
+        try:
+            databases.update_document(
+                database_id=database_id,
+                collection_id='photos',
+                document_id=photo_record_id,
+                data={
+                    'processingStatus': 'processing',
+                    'processingStartedAt': datetime.utcnow().isoformat()
+                }
+            )
+        except Exception as e:
+            context.log(f"Failed to update processing status: {str(e)}")
+
+        # Download the raw image from photos_raw bucket
+        try:
+            file_response = storage.get_file_download('photos_raw', raw_file_id)
+            image_data = file_response.content
+        except Exception as e:
+            # Update status to failed
+            try:
+                databases.update_document(
+                    database_id=database_id,
+                    collection_id='photos',
+                    document_id=photo_record_id,
+                    data={
+                        'processingStatus': 'failed',
+                        'processingCompletedAt': datetime.utcnow().isoformat()
+                    }
+                )
+            except:
+                pass
+
+            return context.res.json({
+                'success': False,
+                'error': f'Failed to download raw file: {str(e)}'
             })
 
         # Convert to numpy array for OpenCV processing
@@ -55,6 +105,20 @@ def main(context):
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if image is None:
+            # Update status to failed
+            try:
+                databases.update_document(
+                    database_id=database_id,
+                    collection_id='photos',
+                    document_id=photo_record_id,
+                    data={
+                        'processingStatus': 'failed',
+                        'processingCompletedAt': datetime.utcnow().isoformat()
+                    }
+                )
+            except:
+                pass
+
             return context.res.json({
                 'success': False,
                 'error': 'Invalid image format'
@@ -69,60 +133,115 @@ def main(context):
         # Detect faces
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        if len(faces) == 0:
-            # No faces detected, return original image info
-            return context.res.json({
-                'success': True,
-                'facesDetected': 0,
-                'message': 'No faces detected, image unchanged'
-            })
+        faces_detected = len(faces)
 
-        # Blur detected faces
-        for (x, y, w, h) in faces:
-            # Extract face region
-            face_roi = image[y:y+h, x:x+w]
+        if faces_detected == 0:
+            # No faces detected, use original image as processed
+            processed_image_data = image_data
+            processed_file_id = raw_file_id
+        else:
+            # Blur detected faces
+            for (x, y, w, h) in faces:
+                # Extract face region
+                face_roi = image[y:y+h, x:x+w]
 
-            # Apply Gaussian blur
-            blurred_face = cv2.GaussianBlur(face_roi, (51, 51), 30)
+                # Apply Gaussian blur
+                blurred_face = cv2.GaussianBlur(face_roi, (51, 51), 30)
 
-            # Replace original face with blurred version
-            image[y:y+h, x:x+w] = blurred_face
+                # Replace original face with blurred version
+                image[y:y+h, x:x+w] = blurred_face
 
-        # Convert back to bytes
-        success, encoded_image = cv2.imencode('.jpg', image)
-        if not success:
-            return context.res.json({
-                'success': False,
-                'error': 'Failed to encode processed image'
-            })
+            # Convert back to bytes
+            success, encoded_image = cv2.imencode('.jpg', image)
+            if not success:
+                # Update status to failed
+                try:
+                    databases.update_document(
+                        database_id=database_id,
+                        collection_id='photos',
+                        document_id=photo_record_id,
+                        data={
+                            'processingStatus': 'failed',
+                            'processingCompletedAt': datetime.utcnow().isoformat()
+                        }
+                    )
+                except:
+                    pass
 
-        processed_image_data = encoded_image.tobytes()
+                return context.res.json({
+                    'success': False,
+                    'error': 'Failed to encode processed image'
+                })
 
-        # Upload processed image back to storage (as a new file)
-        processed_file_name = f"blurred_{file_id}.jpg"
+            processed_image_data = encoded_image.tobytes()
 
+            # Upload processed image to photos_processed bucket
+            processed_file_name = f"processed_{raw_file_id}.jpg"
+
+            try:
+                processed_file = storage.create_file(
+                    bucket_id='photos_processed',
+                    file_id=f"processed_{raw_file_id}",
+                    file=io.BytesIO(processed_image_data),
+                    permissions=['read("any")']
+                )
+                processed_file_id = processed_file['$id']
+            except Exception as e:
+                # Update status to failed
+                try:
+                    databases.update_document(
+                        database_id=database_id,
+                        collection_id='photos',
+                        document_id=photo_record_id,
+                        data={
+                            'processingStatus': 'failed',
+                            'processingCompletedAt': datetime.utcnow().isoformat()
+                        }
+                    )
+                except:
+                    pass
+
+                return context.res.json({
+                    'success': False,
+                    'error': f'Failed to upload processed image: {str(e)}'
+                })
+
+        # Update database record with processing results
         try:
-            # Create new file with processed image
-            processed_file = storage.create_file(
-                bucket_id=bucket_id,
-                file_id=f"blurred_{file_id}",
-                file=io.BytesIO(processed_image_data),
-                permissions=['read("any")']
+            update_data = {
+                'processingStatus': 'completed',
+                'processingCompletedAt': datetime.utcnow().isoformat(),
+                'facesDetected': faces_detected,
+                'processedFileId': processed_file_id,
+                'bucketId': 'photos_processed'
+            }
+
+            if faces_detected > 0:
+                update_data['fileId'] = processed_file_id
+                update_data['filename'] = f"processed_{raw_file_id}.jpg"
+                update_data['size'] = len(processed_image_data)
+
+            databases.update_document(
+                database_id=database_id,
+                collection_id='photos',
+                document_id=photo_record_id,
+                data=update_data
             )
-
-            return context.res.json({
-                'success': True,
-                'facesDetected': len(faces),
-                'originalFileId': file_id,
-                'processedFileId': processed_file['$id'],
-                'message': f'Successfully blurred {len(faces)} face(s)'
-            })
-
         except Exception as e:
-            return context.res.json({
-                'success': False,
-                'error': f'Failed to upload processed image: {str(e)}'
-            })
+            context.log(f"Failed to update database record: {str(e)}")
+
+        # Generate processed photo URL
+        processed_photo_url = f"{appwrite_endpoint}/storage/buckets/photos_processed/files/{processed_file_id}/view"
+
+        return context.res.json({
+            'success': True,
+            'facesDetected': faces_detected,
+            'rawFileId': raw_file_id,
+            'processedFileId': processed_file_id,
+            'photoRecordId': photo_record_id,
+            'processedPhotoUrl': processed_photo_url,
+            'message': f'Successfully processed photo with {faces_detected} face(s) blurred'
+        })
 
     except Exception as e:
         return context.res.json({

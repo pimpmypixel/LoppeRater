@@ -44,39 +44,97 @@ HEADERS=(
     -H "X-Appwrite-Key: $APPWRITE_API_KEY"
 )
 
-echo "🗄️  Checking storage bucket 'photos'..."
+echo "🗄️  Setting up storage buckets..."
 
-# Try to get the bucket, but handle API issues gracefully
-BUCKET_CHECK=$(curl -s --max-time 10 -H "X-Appwrite-Project: $APPWRITE_PROJECT_ID" -H "X-Appwrite-Key: $APPWRITE_API_KEY" "$API_BASE/storage/buckets/photos" 2>/dev/null)
+# Create photos_raw bucket for raw uploads
+echo "📝 Creating storage bucket 'photos_raw'..."
+RAW_BUCKET_RESPONSE=$(curl -s --max-time 10 -X POST "$API_BASE/storage/buckets" \
+    "${HEADERS[@]}" \
+    -d '{
+        "bucketId": "photos_raw",
+        "name": "Raw Photos",
+        "permissions": ["read(\"users\")", "create(\"users\")", "update(\"users\")", "delete(\"users\")"],
+        "fileSecurity": false,
+        "enabled": true,
+        "maximumFileSize": 10485760,
+        "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp"],
+        "compression": "gzip",
+        "encryption": true,
+        "antivirus": true
+    }' 2>/dev/null)
 
-if echo "$BUCKET_CHECK" | grep -q '"$id":"photos"'; then
-    echo "✅ Storage bucket 'photos' exists and is ready"
-elif echo "$BUCKET_CHECK" | grep -q '"code":404'; then
-    echo "📝 Creating storage bucket 'photos'..."
-    BUCKET_RESPONSE=$(curl -s --max-time 10 -X POST "$API_BASE/storage/buckets" \
-        "${HEADERS[@]}" \
-        -d '{
-            "bucketId": "photos",
-            "name": "Photos",
-            "permissions": ["read(\"any\")", "create(\"users\")", "update(\"users\")", "delete(\"users\")"],
-            "fileSecurity": false,
-            "enabled": true,
-            "maximumFileSize": 10485760,
-            "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp"],
-            "compression": "gzip",
-            "encryption": true,
-            "antivirus": true
-        }' 2>/dev/null)
-
-    if echo "$BUCKET_RESPONSE" | grep -q '"$id": "photos"'; then
-        echo "✅ Storage bucket 'photos' created successfully"
-    else
-        echo "⚠️  Storage bucket 'photos' creation failed - may already exist"
-        echo "   Check manually in Appwrite Console: https://cloud.appwrite.io/console"
-    fi
+if echo "$RAW_BUCKET_RESPONSE" | grep -q '"$id": "photos_raw"'; then
+    echo "✅ Storage bucket 'photos_raw' created successfully"
 else
-    echo "⚠️  Could not verify storage bucket status - may already exist"
-    echo "   Check manually in Appwrite Console: https://cloud.appwrite.io/console"
+    echo "⚠️  Storage bucket 'photos_raw' creation failed - may already exist"
+fi
+
+# Create or update photos_processed bucket for processed images
+echo "📝 Setting up storage bucket 'photos_processed'..."
+PROCESSED_BUCKET_CHECK=$(curl -s --max-time 10 -H "X-Appwrite-Project: $APPWRITE_PROJECT_ID" -H "X-Appwrite-Key: $APPWRITE_API_KEY" "$API_BASE/storage/buckets/photos_processed" 2>/dev/null)
+
+if echo "$PROCESSED_BUCKET_CHECK" | grep -q '"$id":"photos_processed"'; then
+    echo "✅ Storage bucket 'photos_processed' exists and is ready"
+else
+    # Check if old 'photos' bucket exists and rename it
+    OLD_BUCKET_CHECK=$(curl -s --max-time 10 -H "X-Appwrite-Project: $APPWRITE_PROJECT_ID" -H "X-Appwrite-Key: $APPWRITE_API_KEY" "$API_BASE/storage/buckets/photos" 2>/dev/null)
+
+    if echo "$OLD_BUCKET_CHECK" | grep -q '"$id":"photos"'; then
+        echo "📝 Renaming existing 'photos' bucket to 'photos_processed'..."
+        RENAME_RESPONSE=$(curl -s --max-time 10 -X PUT "$API_BASE/storage/buckets/photos" \
+            "${HEADERS[@]}" \
+            -d '{
+                "name": "Processed Photos"
+            }' 2>/dev/null)
+
+        if echo "$RENAME_RESPONSE" | grep -q '"name": "Processed Photos"'; then
+            echo "✅ Bucket renamed to 'photos_processed' successfully"
+        else
+            echo "⚠️  Bucket rename failed - creating new 'photos_processed' bucket"
+            PROCESSED_BUCKET_RESPONSE=$(curl -s --max-time 10 -X POST "$API_BASE/storage/buckets" \
+                "${HEADERS[@]}" \
+                -d '{
+                    "bucketId": "photos_processed",
+                    "name": "Processed Photos",
+                    "permissions": ["read(\"any\")", "create(\"users\")", "update(\"users\")", "delete(\"users\")"],
+                    "fileSecurity": false,
+                    "enabled": true,
+                    "maximumFileSize": 10485760,
+                    "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp"],
+                    "compression": "gzip",
+                    "encryption": true,
+                    "antivirus": true
+                }' 2>/dev/null)
+
+            if echo "$PROCESSED_BUCKET_RESPONSE" | grep -q '"$id": "photos_processed"'; then
+                echo "✅ Storage bucket 'photos_processed' created successfully"
+            else
+                echo "⚠️  Storage bucket 'photos_processed' creation failed"
+            fi
+        fi
+    else
+        echo "📝 Creating new storage bucket 'photos_processed'..."
+        PROCESSED_BUCKET_RESPONSE=$(curl -s --max-time 10 -X POST "$API_BASE/storage/buckets" \
+            "${HEADERS[@]}" \
+            -d '{
+                "bucketId": "photos_processed",
+                "name": "Processed Photos",
+                "permissions": ["read(\"any\")", "create(\"users\")", "update(\"users\")", "delete(\"users\")"],
+                "fileSecurity": false,
+                "enabled": true,
+                "maximumFileSize": 10485760,
+                "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp"],
+                "compression": "gzip",
+                "encryption": true,
+                "antivirus": true
+            }' 2>/dev/null)
+
+        if echo "$PROCESSED_BUCKET_RESPONSE" | grep -q '"$id": "photos_processed"'; then
+            echo "✅ Storage bucket 'photos_processed' created successfully"
+        else
+            echo "⚠️  Storage bucket 'photos_processed' creation failed"
+        fi
+    fi
 fi
 
 echo ""
@@ -84,8 +142,9 @@ echo ""
 echo "🎉 Infrastructure setup completed!"
 echo ""
 echo "📋 Summary:"
-echo "- Storage bucket: photos (10MB limit, image files only)"
-echo "- Permissions: Users can upload, anyone can view"
+echo "- Storage bucket: photos_raw (10MB limit, image files only, users only)"
+echo "- Storage bucket: photos_processed (10MB limit, image files only, public access)"
+echo "- Permissions: Users can upload to raw, anyone can view processed"
 echo ""
 echo "💡 Next steps:"
 echo "1. Database tables will be created next"
